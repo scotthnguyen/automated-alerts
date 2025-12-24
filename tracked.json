@@ -1,0 +1,11 @@
+{
+  "email": "YOUR_EMAIL_HERE",
+  "defaultLanguage": "en",
+  "manga": [
+    {
+      "title": "Example Manga",
+      "mangaId": "PUT_MANGADEX_MANGA_UUID_HERE",
+      "lastNotifiedChapterId": null
+    }
+  ]
+}
