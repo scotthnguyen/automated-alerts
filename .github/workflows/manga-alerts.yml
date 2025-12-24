@@ -20,7 +20,7 @@ jobs:
 
       - run: npm ci
 
-      -  name: Check MangaDex and send emails
+      - name: Check MangaDex and send emails
         run: node scripts/check-updates.mjs
         env:
           SMTP_USER: ${{ secrets.SMTP_USER }}
