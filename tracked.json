@@ -1,11 +1,16 @@
 {
-  "email": "YOUR_EMAIL_HERE",
+  "email": "scottowandmore@gmail.com",
   "defaultLanguage": "en",
   "manga": [
     {
-      "title": "Example Manga",
-      "mangaId": "PUT_MANGADEX_MANGA_UUID_HERE",
-      "lastNotifiedChapterId": null
+      "title": "The Knight Who Only Lives Today",
+      "mangaId": "514f1a94-b09f-4331-8cf9-0f01d06d3b80",
+      "lastNotifiedChapterId": "cbapter-20"
+    },
+    {
+      "title": "Solo Leveling",
+      "mangaId": "32d76d19-8a05-4db0-9fc2-e0b0648fe9d0",
+      "lastNotifiedChapterId": "chapter-178"
     }
   ]
 }

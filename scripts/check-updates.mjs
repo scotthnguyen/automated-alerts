@@ -1,18 +1,28 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import sgMail from "@sendgrid/mail";
+import nodemailer from "nodemailer";
 
 const TRACKED_PATH = path.resolve("tracked.json");
 
 const {
-  SENDGRID_API_KEY,
-  FROM_EMAIL
+  SMTP_USER,
+  SMTP_PASS,
+  FROM_EMAIL,
+  TO_EMAIL,
 } = process.env;
 
-if (!SENDGRID_API_KEY) throw new Error("Missing SENDGRID_API_KEY");
+if (!SMTP_USER) throw new Error("Missing SMTP_USER");
+if (!SMTP_PASS) throw new Error("Missing SMTP_PASS");
 if (!FROM_EMAIL) throw new Error("Missing FROM_EMAIL");
+if (!TO_EMAIL) throw new Error("Missing TO_EMAIL");
 
-sgMail.setApiKey(SENDGRID_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: SMTP_USER,
+    pass: SMTP_PASS, // App Password (not your real password)
+  },
+});
 
 async function readTracked() {
   const raw = await fs.readFile(TRACKED_PATH, "utf8");
@@ -24,8 +34,6 @@ async function writeTracked(obj) {
   await fs.writeFile(TRACKED_PATH, pretty, "utf8");
 }
 
-// Fetch newest chapter for a manga (English by default)
-// Uses MangaDex manga feed endpoint and sorts newest first.
 async function fetchLatestChapter(mangaId, lang) {
   const url = new URL(`https://api.mangadex.org/manga/${mangaId}/feed`);
   url.searchParams.set("limit", "1");
@@ -57,7 +65,7 @@ function chapterUrl(chapterId) {
   return `https://mangadex.org/chapter/${chapterId}`;
 }
 
-async function sendEmail(to, from, updates) {
+async function sendEmail(updates) {
   const subject =
     updates.length === 1
       ? `New chapter: ${updates[0].mangaTitle}`
@@ -68,28 +76,27 @@ async function sendEmail(to, from, updates) {
     return `• ${u.mangaTitle}: ${label}\n  ${u.url}`;
   });
 
-  const text =
-    `New updates from MangaDex:\n\n` +
-    lines.join("\n\n") +
-    `\n`;
+  const text = `New updates from MangaDex:\n\n${lines.join("\n\n")}\n`;
 
-  await sgMail.send({ to, from, subject, text });
+  await transporter.sendMail({
+    from: FROM_EMAIL,
+    to: TO_EMAIL,
+    subject,
+    text,
+  });
 }
 
 async function main() {
   const tracked = await readTracked();
-  const email = tracked.email;
   const langDefault = tracked.defaultLanguage ?? "en";
 
   const updates = [];
 
   for (const item of tracked.manga ?? []) {
     const lang = item.language ?? langDefault;
-
     const latest = await fetchLatestChapter(item.mangaId, lang);
     if (!latest) continue;
 
-    // Dedupe: only notify if the chapter id changed since last run
     if (latest.id === item.lastNotifiedChapterId) continue;
 
     updates.push({
@@ -108,19 +115,17 @@ async function main() {
     return;
   }
 
-  // Sort newest first for a nicer email
   updates.sort((a, b) => (b.publishAt || "").localeCompare(a.publishAt || ""));
 
-  await sendEmail(email, FROM_EMAIL, updates);
+  await sendEmail(updates);
 
-  // Update tracked.json so you don’t get duplicate emails next run
   for (const u of updates) {
     const entry = tracked.manga.find(m => m.mangaId === u.mangaId);
     if (entry) entry.lastNotifiedChapterId = u.latestChapterId;
   }
 
   await writeTracked(tracked);
-  console.log(`Sent ${updates.length} update(s) to ${email} and updated tracked.json`);
+  console.log(`Sent ${updates.length} update(s) to ${TO_EMAIL} and updated tracked.json`);
 }
 
 main().catch(err => {

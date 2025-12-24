@@ -20,11 +20,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Check MangaDex and send emails
+      -  name: Check MangaDex and send emails
         run: node scripts/check-updates.mjs
         env:
-          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
 
       - name: Commit updated tracked.json
         run: |
