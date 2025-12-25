@@ -1,4 +1,10 @@
 {
   "defaultLanguage": "en",
-  "manga": []
+  "manga": [
+    {
+      "title": "The Knight Who Only Lives Today",
+      "mangaId": "514f1a94-b09f-4331-8cf9-0f01d06d3b80",
+      "myChapter": 20
+    }
+  ]
 }
