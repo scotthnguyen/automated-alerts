@@ -4,12 +4,7 @@ import nodemailer from "nodemailer";
 
 const TRACKED_PATH = path.resolve("tracked.json");
 
-const {
-  SMTP_USER,
-  SMTP_PASS,
-  FROM_EMAIL,
-  TO_EMAIL,
-} = process.env;
+const { SMTP_USER, SMTP_PASS, FROM_EMAIL, TO_EMAIL } = process.env;
 
 if (!SMTP_USER) throw new Error("Missing SMTP_USER");
 if (!SMTP_PASS) throw new Error("Missing SMTP_PASS");
@@ -18,20 +13,12 @@ if (!TO_EMAIL) throw new Error("Missing TO_EMAIL");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
-  auth: {
-    user: SMTP_USER,
-    pass: SMTP_PASS, // App Password (not your real password)
-  },
+  auth: { user: SMTP_USER, pass: SMTP_PASS }
 });
 
 async function readTracked() {
   const raw = await fs.readFile(TRACKED_PATH, "utf8");
   return JSON.parse(raw);
-}
-
-async function writeTracked(obj) {
-  const pretty = JSON.stringify(obj, null, 2) + "\n";
-  await fs.writeFile(TRACKED_PATH, pretty, "utf8");
 }
 
 async function fetchLatestChapter(mangaId, lang) {
@@ -43,11 +30,7 @@ async function fetchLatestChapter(mangaId, lang) {
   const res = await fetch(url, {
     headers: { "User-Agent": "manga-alerts-bot/1.0 (personal project)" }
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`MangaDex error ${res.status} for ${mangaId}: ${text}`);
-  }
+  if (!res.ok) return null;
 
   const data = await res.json();
   const ch = data?.data?.[0];
@@ -55,35 +38,30 @@ async function fetchLatestChapter(mangaId, lang) {
 
   return {
     id: ch.id,
-    chapter: ch.attributes?.chapter ?? "?",
+    chapter: ch.attributes?.chapter ?? null,
     title: ch.attributes?.title ?? "",
     publishAt: ch.attributes?.publishAt ?? ch.attributes?.createdAt ?? null
   };
 }
 
-function chapterUrl(chapterId) {
-  return `https://mangadex.org/chapter/${chapterId}`;
+function safeNum(x) {
+  // Handles "76", "76.5"; returns NaN if null/""/"extra"
+  return Number.parseFloat(String(x));
 }
 
 async function sendEmail(updates) {
   const subject =
     updates.length === 1
-      ? `New chapter: ${updates[0].mangaTitle}`
-      : `New manga chapters: ${updates.length} updates`;
+      ? `Manga update: ${updates[0].mangaTitle}`
+      : `Manga updates: ${updates.length} series`;
 
   const lines = updates.map(u => {
-    const label = `Ch. ${u.chapter}${u.chapterTitle ? ` — ${u.chapterTitle}` : ""}`;
-    return `• ${u.mangaTitle}: ${label}\n  ${u.url}`;
+    return `• ${u.mangaTitle}: latest ${u.latestLabel} (you’re on ${u.myChapter})`;
   });
 
-  const text = `New updates from MangaDex:\n\n${lines.join("\n\n")}\n`;
+  const text = `You have new chapters to read:\n\n${lines.join("\n")}\n`;
 
-  await transporter.sendMail({
-    from: FROM_EMAIL,
-    to: TO_EMAIL,
-    subject,
-    text,
-  });
+  await transporter.sendMail({ from: FROM_EMAIL, to: TO_EMAIL, subject, text });
 }
 
 async function main() {
@@ -93,39 +71,42 @@ async function main() {
   const updates = [];
 
   for (const item of tracked.manga ?? []) {
-    const lang = item.language ?? langDefault;
-    const latest = await fetchLatestChapter(item.mangaId, lang);
+    const latest = await fetchLatestChapter(item.mangaId, item.language ?? langDefault);
     if (!latest) continue;
 
-    if (latest.id === item.lastNotifiedChapterId) continue;
+    const latestNum = safeNum(latest.chapter);
+    const myNum = safeNum(item.myChapter);
 
-    updates.push({
-      mangaTitle: item.title,
-      chapter: latest.chapter,
-      chapterTitle: latest.title,
-      url: chapterUrl(latest.id),
-      publishAt: latest.publishAt,
-      mangaId: item.mangaId,
-      latestChapterId: latest.id
-    });
+    // If we can compare numbers, only include if you're behind.
+    if (Number.isFinite(latestNum) && Number.isFinite(myNum)) {
+      if (latestNum > myNum) {
+        updates.push({
+          mangaTitle: item.title,
+          myChapter: item.myChapter,
+          latestLabel: `Ch. ${latest.chapter}${latest.title ? ` — ${latest.title}` : ""}`,
+          publishAt: latest.publishAt
+        });
+      }
+    } else {
+      // If numbering is weird/missing, you can choose to include it anyway:
+      // comment this block out if you prefer skipping un-numbered chapters.
+      updates.push({
+        mangaTitle: item.title,
+        myChapter: item.myChapter ?? "?",
+        latestLabel: latest.chapter ? `Ch. ${latest.chapter}` : "New chapter (un-numbered)",
+        publishAt: latest.publishAt
+      });
+    }
   }
 
   if (updates.length === 0) {
-    console.log("No new updates.");
+    console.log("No updates (or nothing comparable).");
     return;
   }
 
   updates.sort((a, b) => (b.publishAt || "").localeCompare(a.publishAt || ""));
-
   await sendEmail(updates);
-
-  for (const u of updates) {
-    const entry = tracked.manga.find(m => m.mangaId === u.mangaId);
-    if (entry) entry.lastNotifiedChapterId = u.latestChapterId;
-  }
-
-  await writeTracked(tracked);
-  console.log(`Sent ${updates.length} update(s) to ${TO_EMAIL} and updated tracked.json`);
+  console.log(`Sent ${updates.length} update(s) to ${TO_EMAIL}`);
 }
 
 main().catch(err => {

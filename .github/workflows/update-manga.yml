@@ -1,0 +1,33 @@
+name: Update Manga Progress
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "Manga title"
+        required: true
+      chapter:
+        description: "Your current chapter"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - name: Update tracked.json
+        run: node scripts/update.mjs "${{ inputs.title }}" "${{ inputs.chapter }}"
+      - name: Commit changes
+        run: |
+          git config user.name "manga-shortcut-bot"
+          git config user.email "manga-shortcut-bot@users.noreply.github.com"
+          git add tracked.json
+          git commit -m "Update manga: ${{ inputs.title }} ch ${{ inputs.chapter }}" || echo "No changes"
+          git push

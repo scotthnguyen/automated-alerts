@@ -2,24 +2,18 @@ name: MangaDex Alerts
 
 on:
   schedule:
-    - cron: "0 17 * * 1" # every 6 hours (UTC)
+    - cron: "0 17 * * 1" # weekly: Monday 17:00 UTC
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-
       - run: npm ci
-
       - name: Check MangaDex and send emails
         run: node scripts/check-updates.mjs
         env:
@@ -27,15 +21,3 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
-
-      - name: Commit updated tracked.json
-        run: |
-          if git diff --quiet; then
-            echo "No changes to commit"
-          else
-            git config user.name "manga-alerts-bot"
-            git config user.email "manga-alerts-bot@users.noreply.github.com"
-            git add tracked.json
-            git commit -m "Update lastNotifiedChapterId"
-            git push
-          fi
