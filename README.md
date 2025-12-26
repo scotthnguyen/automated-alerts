@@ -47,15 +47,24 @@ This project uses **iOS Shortcuts as a lightweight UI**, **GitHub Actions as the
 
 ## Project Structure
 
+```text
 automated-alerts/
-├─ tracked.json
-├─ package.json
-├─ scripts/
-│ ├─ update.mjs # Add/update manga progress
-│ └─ check-updates.mjs # Weekly update checker
-└─ .github/workflows/
-├─ update-manga.yml # Triggered by iOS Shortcut
-└─ manga-alerts.yml # Weekly reminder email
+├── tracked.json                  # JSON-based datastore for reading progress
+├── package.json                  # Node.js project metadata and dependencies
+├── package-lock.json             # Dependency lockfile
+│
+├── scripts/
+│   ├── update.mjs                # Adds/updates manga progress (triggered by iOS Shortcut)
+│   └── check-updates.mjs         # Weekly checker that sends reminder emails
+│
+├── .github/
+│   └── workflows/
+│       ├── update-manga.yml      # Workflow dispatch (mobile-triggered updates)
+│       └── manga-alerts.yml      # Scheduled weekly reminder workflow
+│
+└── README.md                     # Project documentation
+```
+
 
 1. User runs an **iOS Shortcut**
 2. Shortcut sends manga title + chapter to GitHub
