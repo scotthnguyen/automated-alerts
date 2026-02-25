@@ -1,4 +1,4 @@
-# 📘 Automated Manga Tracker & Reminder
+# Automated Manga Tracker & Reminder
 
 A serverless, mobile-first automation that tracks manga reading progress and sends reminder emails when new chapters are available.
 
@@ -6,7 +6,7 @@ This project uses **iOS Shortcuts as a lightweight UI**, **GitHub Actions as the
 
 ---
 
-## ✨ Features
+## Features
 
 - **Update reading progress from your phone**
   - Enter manga title + chapter via an iOS Shortcut
